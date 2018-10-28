@@ -68,7 +68,8 @@ type Proxy struct {
 	// ErrorLog specifies an optional logger for errors that occur when
 	// attempting to proxy the request.  If nil, error logging goes to
 	// os.Stderr via the log package's standard logger.
-	ErrorLog *log.Logger
+	ErrorLog   *log.Logger
+	HTTPClient http.Client
 }
 
 type proxyHandler struct {
@@ -85,8 +86,8 @@ func (p *proxyHandler) doHTTPRequest(req *http.Request) (*http.Response, []byte,
 	if p.Timeout != nil {
 		timeout = *p.Timeout
 	}
-	httpClient := &http.Client{Timeout: timeout}
-	httpResp, err := httpClient.Do(req)
+	p.HTTPClient.Timeout = timeout
+	httpResp, err := p.HTTPClient.Do(req)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -162,6 +163,9 @@ func (p *Proxy) Serve() error {
 // ListenAndServe listens for incoming CoAP requests on the given protocol and
 // address and proxy them to the HTTP server backendURL.
 func ListenAndServe(protocol, addr, backendURL string) error {
-	p := Proxy{BackendURL: backendURL}
+	p := Proxy{
+		BackendURL: backendURL,
+		HTTPClient: http.Client{},
+	}
 	return coap.ListenAndServe(protocol, addr, &proxyHandler{p})
 }
